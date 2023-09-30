@@ -40,7 +40,8 @@ def pevaluate(q):
 @click.option('--val_dataset', type=click.Choice(datasets.keys()), default='sbdd')
 @click.option('--val_split', type=str, default='val')
 @click.option('--class_group', type=click.Choice(['all', '0', '1', '2', '3']), default='all')
-@click.option('--count', type=int, default=None)  # -1 -> dense, None -> random in [0, 100], >= 1 -> count
+# -1 -> dense, None -> random in [0, 100], >= 1 -> count
+@click.option('--count', type=int, default=None)
 @click.option('--shot', type=int, default=1)
 @click.option('--lr', default=1e-5)
 @click.option('--max_iter', type=int, default=int(1e5))
@@ -49,15 +50,16 @@ def pevaluate(q):
 @click.option('--do-eval/--no-eval', default=True)
 def main(experiment, model, dataset, datatype, split, val_dataset, val_split, class_group, count, shot, lr, max_iter, seed, gpu, do_eval):
     setproctitle.setproctitle(experiment)
-    version = subprocess.check_output(['git', 'describe', '--always'], universal_newlines=True).strip()
+    version = subprocess.check_output(
+        ['git', 'describe', '--always'], universal_newlines=True).strip()
     # experiment metadata
     args = locals()
 
     exp_dir = './experiments/{}/'.format(experiment)
     if os.path.isdir(exp_dir):
         click.confirm(click.style("{} already exists. Do you want to "
-            "obliterate it and continue?".format(experiment), fg='red'),
-            abort=True)
+                                  "obliterate it and continue?".format(experiment), fg='red'),
+                      abort=True)
         shutil.rmtree(exp_dir)
     try:
         os.makedirs(exp_dir, exist_ok=True)
@@ -68,7 +70,7 @@ def main(experiment, model, dataset, datatype, split, val_dataset, val_split, cl
     device = torch.device('cuda:0')
 
     logging.basicConfig(filename=exp_dir + 'log', level=logging.INFO,
-        format='[%(asctime)s.%(msecs)03d] %(message)s', datefmt='%H:%M:%S')
+                        format='[%(asctime)s.%(msecs)03d] %(message)s', datefmt='%H:%M:%S')
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
     logging.info("training %s", experiment)
     logging.info("args: %s", args)
@@ -92,7 +94,8 @@ def main(experiment, model, dataset, datatype, split, val_dataset, val_split, cl
         group_size = len(datasets[dataset].classes) // 4
         group_idx = 1 + class_group * group_size
         group_classes = range(group_idx, group_idx + group_size)
-        classes_to_filter = list(set(range(1, len(datasets[dataset].classes))) - set(group_classes))
+        classes_to_filter = list(
+            set(range(1, len(datasets[dataset].classes))) - set(group_classes))
 
     dataset_name = dataset
     prepare_data = datatypes[datatype]
@@ -103,11 +106,12 @@ def main(experiment, model, dataset, datatype, split, val_dataset, val_split, cl
     model_name = model
     model = prepare_model(model, dataset.num_classes).cuda()
 
-    loss_fn = nn.CrossEntropyLoss(reduction='mean', ignore_index=dataset.ignore_index)
+    loss_fn = nn.CrossEntropyLoss(
+        reduction='mean', ignore_index=dataset.ignore_index)
     learned_params = filter(lambda p: p.requires_grad, model.parameters())
     opt = optim.SGD(learned_params, lr=lr, momentum=0.99, weight_decay=0.0005)
 
-    iter_order = int(np.log10(max_iter) + 1 )  # for pretty printing
+    iter_order = int(np.log10(max_iter) + 1)  # for pretty printing
 
     epoch = 0
     iteration = 0
@@ -120,7 +124,7 @@ def main(experiment, model, dataset, datatype, split, val_dataset, val_split, cl
         for i, data in enumerate(loader):
             inputs, target, aux = data[:-2], data[-2], data[-1]
             inputs = [inp.to(device) if not isinstance(inp, list) else
-                    [[i_.to(device) for i_ in in_] for in_ in inp] for inp in inputs]
+                      [[i_.to(device) for i_ in in_] for in_ in inp] for inp in inputs]
             target = target.to(device, non_blocking=True)
 
             scores = model(*inputs)
@@ -130,35 +134,42 @@ def main(experiment, model, dataset, datatype, split, val_dataset, val_split, cl
             train_loss += loss.item()
             losses.append(loss.item())
             if iteration % 20 == 0:
-                logging.info("%s", "iter {iteration:{iter_order}d} loss {mean_loss:02.5f}".format(iteration=iteration, iter_order=iter_order, mean_loss=np.mean(losses)))
+                logging.info("%s", "iter {iteration:{iter_order}d} loss {mean_loss:02.5f}".format(
+                    iteration=iteration, iter_order=iter_order, mean_loss=np.mean(losses)))
                 losses = []
 
             if iteration % 4000 == 0:
                 # snapshot
                 logging.info("snapshotting...")
-                snapshot_path = exp_dir + 'snapshot-iter{iteration:0{iter_order}d}.pth'.format(iteration=iteration, iter_order=iter_order)
+                snapshot_path = exp_dir + 'snapshot-iter{iteration:0{iter_order}d}.pth'.format(
+                    iteration=iteration, iter_order=iter_order)
                 torch.save(model.state_dict(), snapshot_path)
                 # evaluate
                 if do_eval:
                     logging.info("evaluating...")
-                    hist_path = exp_dir + 'hist-iter{iteration:0{iter_order}d}'.format(iteration=iteration, iter_order=iter_order)
+                    hist_path = exp_dir + \
+                        'hist-iter{iteration:0{iter_order}d}'.format(
+                            iteration=iteration, iter_order=iter_order)
                     try:
                         # wait for the last evalution if it's still running
                         q.join()
                     except:
                         pass
                     # carry out evaluation in independent process for determinism and speed
-                    q.put((model_name, snapshot_path, val_dataset_name, datatype, val_split, count, shot, seed, gpu, hist_path, None))
+                    q.put((model_name, snapshot_path, val_dataset_name, datatype,
+                          val_split, count, shot, seed, gpu, hist_path, None))
 
             # update
             opt.step()
             opt.zero_grad()
             iteration += 1
-        logging.info("%s", "train loss = {:02.5f}".format(train_loss / len(dataset)))
+        logging.info("%s", "train loss = {:02.5f}".format(
+            train_loss / len(dataset)))
 
     # signal to evaluation process that training is done
     if do_eval:
         q.put(None)
+
 
 if __name__ == '__main__':
     main()

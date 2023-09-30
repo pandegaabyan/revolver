@@ -16,7 +16,8 @@ from revolver.metrics import SegScorer
 
 
 def evaluate(model, weights, dataset, datatype, split, count, shot, seed, gpu, hist_path, seg_path):
-    print("evaluating {} with weights {} on {} {}-{}".format(model, weights, datatype, dataset, split))
+    print("evaluating {} with weights {} on {} {}-{}".format(model,
+          weights, datatype, dataset, split))
     os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu)
     device = torch.device('cuda:0')
 
@@ -28,18 +29,21 @@ def evaluate(model, weights, dataset, datatype, split, count, shot, seed, gpu, h
     dataset = prepare_data(dataset, split, count=count, shot=shot)
     loader = prepare_loader(dataset, evaluation=True)
 
-    model = prepare_model(model, dataset.num_classes, weights=weights).to(device)
+    model = prepare_model(model, dataset.num_classes,
+                          weights=weights).to(device)
     model.eval()
 
-    loss_fn = nn.CrossEntropyLoss(reduction='mean', ignore_index=dataset.ignore_index)
+    loss_fn = nn.CrossEntropyLoss(
+        reduction='mean', ignore_index=dataset.ignore_index)
 
     total_loss = 0.
-    metrics = SegScorer(len(dataset.classes))  # n.b. this is the full no. of classes, not the no. of model outputs
+    # n.b. this is the full no. of classes, not the no. of model outputs
+    metrics = SegScorer(len(dataset.classes))
     with torch.no_grad():
         for i, data in enumerate(loader):
             inputs, target, aux = data[:-2], data[-2], data[-1]
             inputs = [inp.to(device) if not isinstance(inp, list) else
-                    [[i_.to(device) for i_ in in_] for in_ in inp] for inp in inputs]
+                      [[i_.to(device) for i_ in in_] for in_ in inp] for inp in inputs]
             target = target.to(device)
 
             scores = model(*inputs)
@@ -48,10 +52,12 @@ def evaluate(model, weights, dataset, datatype, split, count, shot, seed, gpu, h
 
             # segmentation evaluation
             _, seg = scores.data[0].max(0)
-            metrics.update(seg.to('cpu').numpy(), target.to('cpu').numpy(), aux)
+            metrics.update(seg.to('cpu').numpy(),
+                           target.to('cpu').numpy(), aux)
             # optionally save segs
             if seg_path is not None:
-                seg = Image.fromarray(seg.to('cpu').numpy().astype(np.uint8), mode='P')
+                seg = Image.fromarray(
+                    seg.to('cpu').numpy().astype(np.uint8), mode='P')
                 save_id = f"{aux['slug']}_{aux.get('cls', 'all')}_{aux.get('inst', 'all')}"
                 seg.save(f"{seg_path}/{save_id}.png")
 
@@ -94,8 +100,10 @@ def main(experiment, model, weights, dataset, datatype, split, count, shot, save
         evaluations = sorted(glob.glob(exp_dir + '*.pth'))
 
     # template the output path
-    count_ = 'dense' if count == -1 else "{}sparse".format(count) if count else 'randsparse'
-    output_fmt = '-{}-{}-{}-{}-{}shot-{}'.format(dataset, datatype, split, count_, shot, seed)
+    count_ = 'dense' if count == - \
+        1 else "{}sparse".format(count) if count else 'randsparse'
+    output_fmt = '-{}-{}-{}-{}-{}shot-{}'.format(
+        dataset, datatype, split, count_, shot, seed)
     output_fmt = model + '-iter{}' + output_fmt
 
     for weights in evaluations:
@@ -110,7 +118,9 @@ def main(experiment, model, weights, dataset, datatype, split, count, shot, save
         if os.path.isfile(hist_path + '.npz'):
             print("skipping existing {}".format(hist_path))
             continue
-        evaluate(model, weights, dataset, datatype, split, count, shot, seed, gpu, hist_path, seg_path)
+        evaluate(model, weights, dataset, datatype, split,
+                 count, shot, seed, gpu, hist_path, seg_path)
+
 
 if __name__ == '__main__':
     main()

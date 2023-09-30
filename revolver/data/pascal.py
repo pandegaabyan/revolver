@@ -29,27 +29,27 @@ class VOCSeg(SegData):
     ignore_index = 255
 
     palette = np.array([
-        [  0,   0,   0],
+        [0,   0,   0],
         [128,   0,   0],
-        [  0, 128,   0],
+        [0, 128,   0],
         [128, 128,   0],
-        [  0,   0, 128],
+        [0,   0, 128],
         [128,   0, 128],
-        [  0, 128, 128],
+        [0, 128, 128],
         [128, 128, 128],
-        [ 64,   0,   0],
+        [64,   0,   0],
         [192,   0,   0],
-        [ 64, 128,   0],
+        [64, 128,   0],
         [192, 128,   0],
-        [ 64,   0, 128],
+        [64,   0, 128],
         [192,   0, 128],
-        [ 64, 128, 128],
+        [64, 128, 128],
         [192, 128, 128],
-        [  0,  64,   0],
+        [0,  64,   0],
         [128,  64,   0],
-        [  0, 192,   0],
+        [0, 192,   0],
         [128, 192,   0],
-        [  0,  64, 128]], dtype=np.uint8)
+        [0,  64, 128]], dtype=np.uint8)
 
     def __init__(self, **kwargs):
         kwargs['root_dir'] = kwargs.get('root_dir', 'data/voc2012')
@@ -130,7 +130,8 @@ class SBDDSemSeg(VOCSeg):
             return super().load_annotation(path)
         else:
             import scipy.io
-            mat = scipy.io.loadmat(path)['GT{}'.format(self.anno_type)][0]['Segmentation'][0]
+            mat = scipy.io.loadmat(path)['GT{}'.format(
+                self.anno_type)][0]['Segmentation'][0]
             return mat.astype(np.uint8)
 
     @property
