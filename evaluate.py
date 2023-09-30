@@ -29,8 +29,8 @@ def evaluate(model, weights, dataset, datatype, split, count, shot, seed, gpu, h
     dataset = prepare_data(dataset, split, count=count, shot=shot)
     loader = prepare_loader(dataset, evaluation=True)
 
-    model = prepare_model(model, dataset.num_classes,
-                          weights=weights).to(device)
+    model = prepare_model(model, dataset.num_classes, weights=weights).to(
+        device) if gpu else prepare_model(model, dataset.num_classes, weights=weights)
     model.eval()
 
     loss_fn = nn.CrossEntropyLoss(
@@ -42,9 +42,13 @@ def evaluate(model, weights, dataset, datatype, split, count, shot, seed, gpu, h
     with torch.no_grad():
         for i, data in enumerate(loader):
             inputs, target, aux = data[:-2], data[-2], data[-1]
-            inputs = [inp.to(device) if not isinstance(inp, list) else
-                      [[i_.to(device) for i_ in in_] for in_ in inp] for inp in inputs]
-            target = target.to(device)
+            if gpu:
+                inputs = [inp.to(device) if not isinstance(inp, list) else
+                          [[i_.to(device) for i_ in in_] for in_ in inp] for inp in inputs]
+                target = target.to(device)
+            else:
+                inputs = [inp if not isinstance(inp, list) else
+                          [[i_ for i_ in in_] for in_ in inp] for inp in inputs]
 
             scores = model(*inputs)
             loss = loss_fn(scores, target)

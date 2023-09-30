@@ -104,7 +104,8 @@ def main(experiment, model, dataset, datatype, split, val_dataset, val_split, cl
     val_dataset_name = val_dataset or dataset_name
 
     model_name = model
-    model = prepare_model(model, dataset.num_classes).cuda()
+    model = prepare_model(model, dataset.num_classes).cuda(
+    ) if gpu else prepare_model(model, dataset.num_classes)
 
     loss_fn = nn.CrossEntropyLoss(
         reduction='mean', ignore_index=dataset.ignore_index)
@@ -123,9 +124,13 @@ def main(experiment, model, dataset, datatype, split, val_dataset, val_split, cl
         train_loss = 0.
         for i, data in enumerate(loader):
             inputs, target, aux = data[:-2], data[-2], data[-1]
-            inputs = [inp.to(device) if not isinstance(inp, list) else
-                      [[i_.to(device) for i_ in in_] for in_ in inp] for inp in inputs]
-            target = target.to(device, non_blocking=True)
+            if gpu:
+                inputs = [inp.to(device) if not isinstance(inp, list) else
+                          [[i_.to(device) for i_ in in_] for in_ in inp] for inp in inputs]
+                target = target.to(device, non_blocking=True)
+            else:
+                inputs = [inp if not isinstance(inp, list) else
+                          [[i_ for i_ in in_] for in_ in inp] for inp in inputs]
 
             scores = model(*inputs)
             loss = loss_fn(scores, target)
