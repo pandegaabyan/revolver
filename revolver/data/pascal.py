@@ -52,7 +52,7 @@ class VOCSeg(SegData):
         [0,  64, 128]], dtype=np.uint8)
 
     def __init__(self, **kwargs):
-        kwargs['root_dir'] = kwargs.get('root_dir', 'data/voc2012')
+        kwargs['root_dir'] = kwargs.get('root_dir', "../Data/VOC2012")
         kwargs['split'] = kwargs.get('split', 'train')
         super().__init__(**kwargs)
 
